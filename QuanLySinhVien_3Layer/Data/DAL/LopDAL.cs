@@ -1,34 +1,83 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Configuration;
+using System.Data;
+using MySql.Data.MySqlClient;
 using QuanLySinhVien_3Layer.Data.Entity;
 
 namespace QuanLySinhVien_3Layer.Data.DAL
 {
     public class LopDAL
     {
-        private static List<Lop> _danhSachLop;
+        private readonly string _connectionString;
 
-        static LopDAL()
+        public LopDAL()
         {
-            _danhSachLop = new List<Lop>
-            {
-                new Lop("CNTT1", "Công nghệ thông tin 1"),
-                new Lop("CNTT2", "Công nghệ thông tin 2"),
-                new Lop("KTPM1", "Kỹ thuật phần mềm 1"),
-                new Lop("HTTT1", "Hệ thống thông tin 1"),
-                new Lop("KHMT1", "Khoa học máy tính 1")
-            };
+            string connStr = null;
+            if (ConfigurationManager.ConnectionStrings["StrConn"] != null)
+                connStr = ConfigurationManager.ConnectionStrings["StrConn"].ConnectionString;
+            else if (ConfigurationManager.ConnectionStrings["MyConn"] != null)
+                connStr = ConfigurationManager.ConnectionStrings["MyConn"].ConnectionString;
+
+            if (string.IsNullOrEmpty(connStr))
+                connStr = "Server=localhost;Database=Quanlysinhvien_db;Uid=root;Pwd=Ngocbich18!;";
+
+            _connectionString = connStr;
+        }
+
+        private MySqlConnection GetConnection()
+        {
+            return new MySqlConnection(_connectionString);
         }
 
         public List<Lop> GetAll()
         {
-            return new List<Lop>(_danhSachLop);
+            var list = new List<Lop>();
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                string query = "SELECT MaLop, TenLop FROM Lop ORDER BY MaLop";
+                using (var cmd = new MySqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        list.Add(new Lop
+                        {
+                            MaLop = reader["MaLop"] != DBNull.Value ? reader["MaLop"].ToString() : string.Empty,
+                            TenLop = reader["TenLop"] != DBNull.Value ? reader["TenLop"].ToString() : string.Empty
+                        });
+                    }
+                }
+            }
+            return list;
         }
 
         public Lop GetById(string maLop)
         {
-            return _danhSachLop.FirstOrDefault(l => l.MaLop.Equals(maLop, StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(maLop)) return null;
+
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                string query = "SELECT MaLop, TenLop FROM Lop WHERE MaLop = @MaLop";
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@MaLop", maLop.Trim());
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return new Lop
+                            {
+                                MaLop = reader["MaLop"] != DBNull.Value ? reader["MaLop"].ToString() : string.Empty,
+                                TenLop = reader["TenLop"] != DBNull.Value ? reader["TenLop"].ToString() : string.Empty
+                            };
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 }

@@ -8,164 +8,127 @@ namespace QuanLySinhVien_3Layer.BUL
 {
     public class SinhVienBUL
     {
-        private readonly SinhVienDAL _sinhVienDAL;
+        private readonly SinhVienDAO _sinhVienDAO;
 
         public SinhVienBUL()
         {
-            _sinhVienDAL = new SinhVienDAL();
+            _sinhVienDAO = new SinhVienDAO();
         }
 
         public List<SinhVien> GetAll()
         {
-            return _sinhVienDAL.GetAll();
+            return _sinhVienDAO.GetAll();
         }
 
         public SinhVien GetById(string maSV)
         {
-            return _sinhVienDAL.GetById(maSV);
+            if (string.IsNullOrWhiteSpace(maSV))
+                throw new ArgumentException("Mã sinh viên không được để trống.", "maSV");
+
+            return _sinhVienDAO.GetById(maSV.Trim());
         }
 
-        public bool Them(SinhVien sv, out string errorMessage)
+        public void KiemTraThongTin(SinhVien sv, bool isThemMoi)
         {
-            errorMessage = string.Empty;
-
             if (sv == null)
             {
-                errorMessage = "Dữ liệu sinh viên không hợp lệ!";
-                return false;
+                throw new ArgumentNullException("sv", "Dữ liệu sinh viên không hợp lệ!");
             }
 
             if (string.IsNullOrWhiteSpace(sv.MaSV))
             {
-                errorMessage = "Mã sinh viên không được để trống!";
-                return false;
+                throw new ArgumentException("Mã sinh viên không được để trống!");
             }
 
-            if (_sinhVienDAL.GetById(sv.MaSV) != null)
+            sv.MaSV = sv.MaSV.Trim();
+
+            if (isThemMoi)
             {
-                errorMessage = $"Mã sinh viên '{sv.MaSV}' đã tồn tại trong hệ thống!";
-                return false;
+                if (_sinhVienDAO.GetById(sv.MaSV) != null)
+                {
+                    throw new InvalidOperationException("Mã sinh viên '" + sv.MaSV + "' đã tồn tại trong hệ thống!");
+                }
+            }
+            else
+            {
+                if (_sinhVienDAO.GetById(sv.MaSV) == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy sinh viên có mã '" + sv.MaSV + "' để cập nhật!");
+                }
             }
 
             if (string.IsNullOrWhiteSpace(sv.HoTen))
             {
-                errorMessage = "Họ và tên không được để trống!";
-                return false;
+                throw new ArgumentException("Họ và tên không được để trống!");
+            }
+
+            sv.HoTen = sv.HoTen.Trim();
+
+            if (sv.NgaySinh > DateTime.Now)
+            {
+                throw new ArgumentException("Ngày sinh không được lớn hơn ngày hiện tại!");
             }
 
             if (string.IsNullOrWhiteSpace(sv.MaLop))
             {
-                errorMessage = "Vui lòng chọn lớp học!";
-                return false;
+                throw new ArgumentException("Vui lòng chọn lớp học!");
             }
 
             if (sv.Diem < 0 || sv.Diem > 10)
             {
-                errorMessage = "Điểm phải nằm trong thang điểm từ 0 đến 10!";
-                return false;
+                throw new ArgumentException("Điểm phải nằm trong thang điểm từ 0 đến 10!");
             }
 
-            if (!string.IsNullOrWhiteSpace(sv.Email) && !sv.Email.Contains("@"))
+            if (!string.IsNullOrWhiteSpace(sv.Email))
             {
-                errorMessage = "Định dạng email không hợp lệ!";
-                return false;
+                sv.Email = sv.Email.Trim();
+                if (!Regex.IsMatch(sv.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                {
+                    throw new ArgumentException("Định dạng email không hợp lệ (ví dụ: an.nv@gmail.com)!");
+                }
             }
 
-            bool success = _sinhVienDAL.Insert(sv);
-            if (!success)
+            if (!string.IsNullOrWhiteSpace(sv.DienThoai))
             {
-                errorMessage = "Không thể thêm sinh viên vào danh sách!";
-                return false;
+                sv.DienThoai = sv.DienThoai.Trim();
+                if (!Regex.IsMatch(sv.DienThoai, @"^0\d{9,10}$"))
+                {
+                    throw new ArgumentException("Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và có từ 10 chữ số)!");
+                }
             }
-
-            return true;
         }
 
-        public bool Sua(SinhVien sv, out string errorMessage)
+        public void Them(SinhVien sv)
         {
-            errorMessage = string.Empty;
-
-            if (sv == null)
-            {
-                errorMessage = "Dữ liệu sinh viên không hợp lệ!";
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(sv.MaSV))
-            {
-                errorMessage = "Mã sinh viên không được để trống!";
-                return false;
-            }
-
-            if (_sinhVienDAL.GetById(sv.MaSV) == null)
-            {
-                errorMessage = $"Không tìm thấy sinh viên có mã '{sv.MaSV}' để cập nhật!";
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(sv.HoTen))
-            {
-                errorMessage = "Họ và tên không được để trống!";
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(sv.MaLop))
-            {
-                errorMessage = "Vui lòng chọn lớp học!";
-                return false;
-            }
-
-            if (sv.Diem < 0 || sv.Diem > 10)
-            {
-                errorMessage = "Điểm phải nằm trong thang điểm từ 0 đến 10!";
-                return false;
-            }
-
-            if (!string.IsNullOrWhiteSpace(sv.Email) && !sv.Email.Contains("@"))
-            {
-                errorMessage = "Định dạng email không hợp lệ!";
-                return false;
-            }
-
-            bool success = _sinhVienDAL.Update(sv);
-            if (!success)
-            {
-                errorMessage = "Không thể cập nhật thông tin sinh viên!";
-                return false;
-            }
-
-            return true;
+            KiemTraThongTin(sv, true);
+            _sinhVienDAO.Add(sv);
         }
 
-        public bool Xoa(string maSV, out string errorMessage)
+        public void Sua(SinhVien sv)
         {
-            errorMessage = string.Empty;
+            KiemTraThongTin(sv, false);
+            _sinhVienDAO.Update(sv);
+        }
 
+        public void Xoa(string maSV)
+        {
             if (string.IsNullOrWhiteSpace(maSV))
             {
-                errorMessage = "Vui lòng chọn sinh viên cần xoá!";
-                return false;
+                throw new ArgumentException("Vui lòng chọn sinh viên cần xoá!");
             }
 
-            if (_sinhVienDAL.GetById(maSV) == null)
+            string cleanMaSV = maSV.Trim();
+            if (_sinhVienDAO.GetById(cleanMaSV) == null)
             {
-                errorMessage = $"Không tìm thấy sinh viên có mã '{maSV}' để xoá!";
-                return false;
+                throw new InvalidOperationException("Không tìm thấy sinh viên có mã '" + cleanMaSV + "' để xoá!");
             }
 
-            bool success = _sinhVienDAL.Delete(maSV);
-            if (!success)
-            {
-                errorMessage = "Không thể xoá sinh viên!";
-                return false;
-            }
-
-            return true;
+            _sinhVienDAO.Delete(cleanMaSV);
         }
 
         public List<SinhVien> TimKiem(string keyword, string maLop, decimal? minScore)
         {
-            return _sinhVienDAL.Search(keyword, maLop, minScore);
+            return _sinhVienDAO.Search(keyword, maLop, minScore);
         }
     }
 }

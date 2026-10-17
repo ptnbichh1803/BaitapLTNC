@@ -19,7 +19,7 @@ namespace QuanLySinhVien_3Layer.Data.Entity
 
         public override string ToString()
         {
-            return TenLop;
+            return TenLop ?? string.Empty;
         }
     }
 }

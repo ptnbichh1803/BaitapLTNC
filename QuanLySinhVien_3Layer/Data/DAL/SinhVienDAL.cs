@@ -1,99 +1,268 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Configuration;
+using System.Data;
+using MySql.Data.MySqlClient;
 using QuanLySinhVien_3Layer.Data.Entity;
 
 namespace QuanLySinhVien_3Layer.Data.DAL
 {
     public class SinhVienDAL
     {
-        private static List<SinhVien> _danhSachSinhVien;
+        private readonly string _connectionString;
+        private static bool? _hasTenLopColumn = null;
 
-        static SinhVienDAL()
+        public SinhVienDAL()
         {
-            _danhSachSinhVien = new List<SinhVien>
+            string connStr = null;
+            if (ConfigurationManager.ConnectionStrings["StrConn"] != null)
+                connStr = ConfigurationManager.ConnectionStrings["StrConn"].ConnectionString;
+            else if (ConfigurationManager.ConnectionStrings["MyConn"] != null)
+                connStr = ConfigurationManager.ConnectionStrings["MyConn"].ConnectionString;
+
+            if (string.IsNullOrEmpty(connStr))
+                connStr = "Server=localhost;Database=Quanlysinhvien_db;Uid=root;Pwd=Ngocbich18!;";
+
+            _connectionString = connStr;
+        }
+
+        private MySqlConnection GetConnection()
+        {
+            return new MySqlConnection(_connectionString);
+        }
+
+        private bool HasTenLopColumn(MySqlConnection conn)
+        {
+            if (_hasTenLopColumn.HasValue) return _hasTenLopColumn.Value;
+            try
             {
-                new SinhVien("SV001", "Nguyễn Văn An", new DateTime(2003, 5, 15), "Nam", "an.nv@gmail.com", "0912345678", "CNTT1", "Công nghệ thông tin 1", 8.5m, "Đang học"),
-                new SinhVien("SV002", "Trần Thị Mai", new DateTime(2003, 8, 20), "Nữ", "mai.tt@gmail.com", "0987654321", "CNTT1", "Công nghệ thông tin 1", 9.0m, "Đang học"),
-                new SinhVien("SV003", "Lê Hoàng Long", new DateTime(2002, 11, 2), "Nam", "long.lh@gmail.com", "0901234567", "KTPM1", "Kỹ thuật phần mềm 1", 7.2m, "Đang học"),
-                new SinhVien("SV004", "Phạm Thị Hương", new DateTime(2003, 3, 10), "Nữ", "huong.pt@gmail.com", "0934567890", "HTTT1", "Hệ thống thông tin 1", 6.8m, "Bảo lưu"),
-                new SinhVien("SV005", "Vũ Minh Đức", new DateTime(2001, 1, 25), "Nam", "duc.vm@gmail.com", "0978901234", "KHMT1", "Khoa học máy tính 1", 8.9m, "Đã tốt nghiệp")
-            };
+                using (var cmd = new MySqlCommand("SHOW COLUMNS FROM SinhVien LIKE 'TenLop'", conn))
+                {
+                    var result = cmd.ExecuteScalar();
+                    _hasTenLopColumn = (result != null);
+                }
+            }
+            catch
+            {
+                _hasTenLopColumn = false;
+            }
+            return _hasTenLopColumn.Value;
         }
 
         public List<SinhVien> GetAll()
         {
-            return new List<SinhVien>(_danhSachSinhVien);
+            var list = new List<SinhVien>();
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                string query = @"SELECT sv.MaSV, sv.HoTen, sv.NgaySinh, sv.GioiTinh, sv.Email, sv.DienThoai, sv.MaLop, 
+                                        COALESCE(l.TenLop, '') AS TenLop, sv.Diem, sv.TrangThai 
+                                 FROM SinhVien sv 
+                                 LEFT JOIN Lop l ON sv.MaLop = l.MaLop 
+                                 ORDER BY sv.MaSV";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        list.Add(MapSinhVien(reader));
+                    }
+                }
+            }
+            return list;
         }
 
         public SinhVien GetById(string maSV)
         {
             if (string.IsNullOrWhiteSpace(maSV)) return null;
-            return _danhSachSinhVien.FirstOrDefault(s => s.MaSV.Trim().Equals(maSV.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                string query = @"SELECT sv.MaSV, sv.HoTen, sv.NgaySinh, sv.GioiTinh, sv.Email, sv.DienThoai, sv.MaLop, 
+                                        COALESCE(l.TenLop, '') AS TenLop, sv.Diem, sv.TrangThai 
+                                 FROM SinhVien sv 
+                                 LEFT JOIN Lop l ON sv.MaLop = l.MaLop 
+                                 WHERE sv.MaSV = @MaSV";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@MaSV", maSV.Trim());
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            return MapSinhVien(reader);
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         public bool Insert(SinhVien sv)
         {
-            if (sv == null) return false;
-            if (GetById(sv.MaSV) != null) return false;
+            if (sv == null || string.IsNullOrWhiteSpace(sv.MaSV)) return false;
 
-            _danhSachSinhVien.Add(sv);
-            return true;
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                bool includeTenLop = HasTenLopColumn(conn);
+
+                string query = includeTenLop
+                    ? @"INSERT INTO SinhVien (MaSV, HoTen, NgaySinh, GioiTinh, Email, DienThoai, MaLop, TenLop, Diem, TrangThai) 
+                        VALUES (@MaSV, @HoTen, @NgaySinh, @GioiTinh, @Email, @DienThoai, @MaLop, @TenLop, @Diem, @TrangThai)"
+                    : @"INSERT INTO SinhVien (MaSV, HoTen, NgaySinh, GioiTinh, Email, DienThoai, MaLop, Diem, TrangThai) 
+                        VALUES (@MaSV, @HoTen, @NgaySinh, @GioiTinh, @Email, @DienThoai, @MaLop, @Diem, @TrangThai)";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@MaSV", sv.MaSV.Trim());
+                    cmd.Parameters.AddWithValue("@HoTen", sv.HoTen ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@NgaySinh", sv.NgaySinh);
+                    cmd.Parameters.AddWithValue("@GioiTinh", sv.GioiTinh ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@Email", sv.Email ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@DienThoai", sv.DienThoai ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@MaLop", sv.MaLop ?? string.Empty);
+                    if (includeTenLop)
+                    {
+                        cmd.Parameters.AddWithValue("@TenLop", sv.TenLop ?? string.Empty);
+                    }
+                    cmd.Parameters.AddWithValue("@Diem", sv.Diem);
+                    cmd.Parameters.AddWithValue("@TrangThai", sv.TrangThai ?? "Đang học");
+
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
         }
 
         public bool Update(SinhVien sv)
         {
-            if (sv == null) return false;
-            var existing = GetById(sv.MaSV);
-            if (existing == null) return false;
+            if (sv == null || string.IsNullOrWhiteSpace(sv.MaSV)) return false;
 
-            existing.HoTen = sv.HoTen;
-            existing.NgaySinh = sv.NgaySinh;
-            existing.GioiTinh = sv.GioiTinh;
-            existing.Email = sv.Email;
-            existing.DienThoai = sv.DienThoai;
-            existing.MaLop = sv.MaLop;
-            existing.TenLop = sv.TenLop;
-            existing.Diem = sv.Diem;
-            existing.TrangThai = sv.TrangThai;
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                bool includeTenLop = HasTenLopColumn(conn);
 
-            return true;
+                string query = includeTenLop
+                    ? @"UPDATE SinhVien 
+                        SET HoTen = @HoTen, NgaySinh = @NgaySinh, GioiTinh = @GioiTinh, 
+                            Email = @Email, DienThoai = @DienThoai, MaLop = @MaLop, 
+                            TenLop = @TenLop, Diem = @Diem, TrangThai = @TrangThai 
+                        WHERE MaSV = @MaSV"
+                    : @"UPDATE SinhVien 
+                        SET HoTen = @HoTen, NgaySinh = @NgaySinh, GioiTinh = @GioiTinh, 
+                            Email = @Email, DienThoai = @DienThoai, MaLop = @MaLop, 
+                            Diem = @Diem, TrangThai = @TrangThai 
+                        WHERE MaSV = @MaSV";
+
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@MaSV", sv.MaSV.Trim());
+                    cmd.Parameters.AddWithValue("@HoTen", sv.HoTen ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@NgaySinh", sv.NgaySinh);
+                    cmd.Parameters.AddWithValue("@GioiTinh", sv.GioiTinh ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@Email", sv.Email ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@DienThoai", sv.DienThoai ?? string.Empty);
+                    cmd.Parameters.AddWithValue("@MaLop", sv.MaLop ?? string.Empty);
+                    if (includeTenLop)
+                    {
+                        cmd.Parameters.AddWithValue("@TenLop", sv.TenLop ?? string.Empty);
+                    }
+                    cmd.Parameters.AddWithValue("@Diem", sv.Diem);
+                    cmd.Parameters.AddWithValue("@TrangThai", sv.TrangThai ?? "Đang học");
+
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
         }
 
         public bool Delete(string maSV)
         {
-            var sv = GetById(maSV);
-            if (sv == null) return false;
+            if (string.IsNullOrWhiteSpace(maSV)) return false;
 
-            return _danhSachSinhVien.Remove(sv);
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                string query = "DELETE FROM SinhVien WHERE MaSV = @MaSV";
+                using (var cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@MaSV", maSV.Trim());
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
         }
 
         public List<SinhVien> Search(string keyword, string maLop, decimal? minScore)
         {
-            var query = _danhSachSinhVien.AsEnumerable();
+            var list = new List<SinhVien>();
 
-            if (!string.IsNullOrWhiteSpace(keyword))
+            using (var conn = GetConnection())
             {
-                string kw = keyword.Trim().ToLower();
-                query = query.Where(s => 
-                    (s.MaSV != null && s.MaSV.ToLower().Contains(kw)) ||
-                    (s.HoTen != null && s.HoTen.ToLower().Contains(kw)) ||
-                    (s.Email != null && s.Email.ToLower().Contains(kw)) ||
-                    (s.DienThoai != null && s.DienThoai.Contains(kw))
-                );
+                conn.Open();
+
+                string query = @"SELECT sv.MaSV, sv.HoTen, sv.NgaySinh, sv.GioiTinh, sv.Email, sv.DienThoai, sv.MaLop, 
+                                        COALESCE(l.TenLop, '') AS TenLop, sv.Diem, sv.TrangThai 
+                                 FROM SinhVien sv 
+                                 LEFT JOIN Lop l ON sv.MaLop = l.MaLop 
+                                 WHERE 1=1";
+
+                using (var cmd = new MySqlCommand())
+                {
+                    if (!string.IsNullOrWhiteSpace(keyword))
+                    {
+                        query += " AND (sv.MaSV LIKE @kw OR sv.HoTen LIKE @kw OR sv.Email LIKE @kw OR sv.DienThoai LIKE @kw)";
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword.Trim() + "%");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(maLop) &&
+                        !maLop.Equals("ALL", StringComparison.OrdinalIgnoreCase) &&
+                        !maLop.Equals("-- Tất cả lớp --", StringComparison.OrdinalIgnoreCase))
+                    {
+                        query += " AND sv.MaLop = @maLop";
+                        cmd.Parameters.AddWithValue("@maLop", maLop.Trim());
+                    }
+
+                    if (minScore.HasValue)
+                    {
+                        query += " AND sv.Diem >= @minScore";
+                        cmd.Parameters.AddWithValue("@minScore", minScore.Value);
+                    }
+
+                    query += " ORDER BY sv.MaSV";
+                    cmd.CommandText = query;
+                    cmd.Connection = conn;
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            list.Add(MapSinhVien(reader));
+                        }
+                    }
+                }
             }
 
-            if (!string.IsNullOrWhiteSpace(maLop) && !maLop.Equals("ALL", StringComparison.OrdinalIgnoreCase))
-            {
-                query = query.Where(s => s.MaLop != null && s.MaLop.Equals(maLop, StringComparison.OrdinalIgnoreCase));
-            }
+            return list;
+        }
 
-            if (minScore.HasValue)
+        private SinhVien MapSinhVien(MySqlDataReader reader)
+        {
+            return new SinhVien
             {
-                query = query.Where(s => s.Diem >= minScore.Value);
-            }
-
-            return query.ToList();
+                MaSV = reader["MaSV"] != DBNull.Value ? reader["MaSV"].ToString() : string.Empty,
+                HoTen = reader["HoTen"] != DBNull.Value ? reader["HoTen"].ToString() : string.Empty,
+                NgaySinh = reader["NgaySinh"] != DBNull.Value ? Convert.ToDateTime(reader["NgaySinh"]) : DateTime.MinValue,
+                GioiTinh = reader["GioiTinh"] != DBNull.Value ? reader["GioiTinh"].ToString() : string.Empty,
+                Email = reader["Email"] != DBNull.Value ? reader["Email"].ToString() : string.Empty,
+                DienThoai = reader["DienThoai"] != DBNull.Value ? reader["DienThoai"].ToString() : string.Empty,
+                MaLop = reader["MaLop"] != DBNull.Value ? reader["MaLop"].ToString() : string.Empty,
+                TenLop = reader["TenLop"] != DBNull.Value ? reader["TenLop"].ToString() : string.Empty,
+                Diem = reader["Diem"] != DBNull.Value ? Convert.ToDecimal(reader["Diem"]) : 0m,
+                TrangThai = reader["TrangThai"] != DBNull.Value ? reader["TrangThai"].ToString() : string.Empty
+            };
         }
     }
 }
