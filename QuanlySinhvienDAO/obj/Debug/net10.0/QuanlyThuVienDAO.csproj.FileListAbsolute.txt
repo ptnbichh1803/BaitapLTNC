@@ -1,0 +1,16 @@
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\bin\Debug\net10.0\QuanlyThuVienDAO.deps.json
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\bin\Debug\net10.0\QuanlyThuVienDAO.runtimeconfig.json
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\bin\Debug\net10.0\QuanlyThuVienDAO.dll
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\bin\Debug\net10.0\QuanlyThuVienDAO.pdb
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.csproj.AssemblyReference.cache
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.AssemblyInfoInputs.cache
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.AssemblyInfo.cs
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.csproj.CoreCompileInputs.cache
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.sourcelink.json
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.dll
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\refint\QuanlyThuVienDAO.dll
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.pdb
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyThuVienDAO.genruntimeconfig.cache
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\ref\QuanlyThuVienDAO.dll
+C:\Users\User\source\repos\QuanLySinhVien_3Layer\QuanlySinhvienDAO\obj\Debug\net10.0\QuanlyTh.0F65BDA4.Up2Date
